@@ -681,7 +681,7 @@ def _build_vod_clip(
     return clip, plan.duration_ms
 
 
-async def _vod_response(
+def _build_vod_response(
     camera_name: str,
     start_ts: float,
     end_ts: float,
@@ -825,6 +825,29 @@ async def _vod_response(
         # EXT-X-MAP outside of its live mode
         content["initialClipIndex"] = 1
     return JSONResponse(content=content)
+
+
+async def _vod_response(
+    camera_name: str,
+    start_ts: float,
+    end_ts: float,
+    force_discontinuity: bool = False,
+    stream_preference: str | None = None,
+) -> JSONResponse:
+    """Run _build_vod_response off the event loop.
+
+    Resolving coverage queries the database and every clip may need its
+    keyframes, so building the mapping inline would stall the whole API
+    while the disk is slow.
+    """
+    return await asyncio.to_thread(
+        _build_vod_response,
+        camera_name,
+        start_ts,
+        end_ts,
+        force_discontinuity,
+        stream_preference,
+    )
 
 
 @router.get(
